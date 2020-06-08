@@ -1,0 +1,23 @@
+#!/usr/bin/env fish
+
+# - Functions that start with =_= are not shown by the ~help~ task.
+
+function example -d "Example task"
+    echo "Task is not defined"
+end
+
+# Taskfile private
+
+function _desc -d "Print a function's description"
+    set --local rx '^.+--description\s+[\'"]?((\\w|\\s)+).*' '$1'
+    echo (functions $argv[1] | string replace --filter --regex $rx)
+end
+
+function _help -d "Usage"
+    set --local rx '^\\s*function\\s+([^_]\\S+).*' '$1'
+    set --local tasks (cat (status filename) | string replace --filter --regex $rx)
+    printf '%s\n%s\n' 'run <task> [ rags ]' 'Available tasks:'
+    printf '%s\n' (for task in $tasks; echo -e "- $task\t"(_desc $task); end) | column -t -s\t
+end
+
+if functions --query $argv[1]; time $argv[1] $argv[2..-1]; else; _help; end

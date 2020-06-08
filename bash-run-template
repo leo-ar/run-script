@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# - Functions that start with =_= are not shown by the ~help~ task.
+# - Add a description by setting a variable with the function name replacing
+#   `-` with `_` an suffixing it with `_info`.
+
+example_info="Example task"
+function example {
+    echo "Task is not defined"
+}
+
+
+################################################################################
+# Script help and run commands
+
+function _help {
+    local tasks=$(grep --only-match '^\s*function\s\+[^_]\S\+' $0 | sed 's/^[ \t]*function[ \t]*//')
+    local lines=""
+    for task in ${tasks[*]}
+    do
+        local info=${task//-/_}_info
+        lines+="- $task\t${!info}\n"
+    done
+    echo "run <task> [<args>]"
+    echo "Available tasks:"
+    echo -e $lines | column -t -s$'\t'
+}
+
+TIMEFORMAT="Task completed in %3lR"
+time ${@:-_help}

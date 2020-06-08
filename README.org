@@ -1,0 +1,187 @@
+# -*- org-confirm-babel-evaluate: nil; -*-
+#+STARTUP: overview
+#+title: run script
+#+date: <2020-06-07 Sun>
+#+author: leo-ar
+#+email: lrojas@gmail.com
+
+This repository contains the default ~run~ script template for getting started
+in new projects.
+
+Based on https://github.com/adriancooney/Taskfile \\
+and https://medium.com/@adrian_cooney/introducing-the-taskfile-5ddfe7ed83bd
+
+A /run script/ is a bash (or fish, etc.) script that follows a specific
+format. It's called ~run~, sits in the root of a project and/or in your home
+directory and contains repeatable tasks written as functions.
+
+* Fish
+- Functions that start with =_= are not shown by the ~help~ task.
+- Add a description to the tasks using [[https://fishshell.com/docs/current/cmds/function.html][fish ~-d~ option]].
+
+** Example
+#+begin_src fish
+  #!/usr/bin/env fish
+
+  function update-brew -d "Update brew"
+      echo "Updating brew"
+      brew update
+      and brew upgrade
+      and brew cleanup
+      and brew cask outdated
+  end
+
+  function update-asdf -d "Update asdf"
+      echo "Updating asdf"
+      asdf update
+      asdf plugin update --all
+  end
+
+  function update-npm -d "Update global npm"
+      echo "Updating global NPM"
+      npm outdated --global
+      npm update --global
+  end
+
+  function update -d "Update all"
+      update-brew
+      update-asdf
+      update-npm
+  end
+
+  function init-run -d "Download a run script template to the current directory and make it executable"
+      set --local com "run"
+      if test -e $com
+          echo "A" $com "file already exists in the current directory"
+          return 1
+      else
+          set --local shell 'bash'; if test "$argv[1]" = 'fish'; set shell "$argv[1]"; end
+          set --local url "https://raw.githubusercontent.com/leo-ar/run-script/master/$shell-run-template"
+          curl --silent --output $com $url
+          and chmod +x $com
+          and echo Initialized $shell $com script.
+      end
+  end
+
+  # Taskfile private
+
+  function _desc -d "Print a function's description"
+      set --local rx '^.+--description\s+[\'"]?((\\w|\\s)+).*' '$1'
+      echo (functions $argv[1] | string replace --filter --regex $rx)
+  end
+
+  function _help -d "Usage"
+      set --local rx '^\\s*function\\s+([^_]\\S+).*' '$1'
+      set --local tasks (cat (status filename) | string replace --filter --regex $rx)
+      printf '%s\n%s\n' 'run <task> [ rags ]' 'Available tasks:'
+      printf '%s\n' (for task in $tasks; echo -e "- $task\t"(_desc $task); end) | column -t -s\t
+  end
+
+  if functions --query $argv[1]; time $argv[1] $argv[2..-1]; else; _help; end
+#+end_src
+
+Running ~./run~ produces:
+
+#+begin_example
+  run <task> [ rags ]
+  Available tasks:
+  - update-brew  Update brew
+  - update-asdf  Update asdf
+  - update-npm   Update global npm
+  - update       Update all
+  - init-run     Download a run script template to the current directory and make it executable
+#+end_example
+
+** Install (optional)
+To "install", add the following to your =~/.config/fish/functions/run.fish=.
+#+begin_src fish
+  function run -d "Run the run script in the current directory"
+      set --local com "run"
+      if test -x $com
+          "./$com" $argv
+      else
+          if test -f $com
+              echo "$com script in $PWD isn't executable"
+          else
+              echo "No $com script found in $PWD"
+          end
+          return 1
+      end
+  end
+#+end_src
+
+* Bash
+- Functions that start with =_= are not shown by the ~help~ task.
+- Add a description by setting a variable with the function name replacing =-=
+  with =_= an suffixing it with =_info=.
+
+** Example
+#+begin_src sh
+  #!/bin/bash
+
+  update_brew_info="Update brew"
+  function update-brew {
+      echo "Updating brew"
+      brew update && brew upgrade && brew cleanup && brew cask outdated
+  }
+
+  update_asdf_info="Update asdf"
+  function update-asdf {
+      echo "Updating asdf"
+      asdf update
+      asdf plugin update --all
+  }
+
+  update_npm_info="Update global npm"
+  function update-npm {
+      echo "Updating global NPM"
+      npm outdated --global
+      npm update --global
+  }
+
+  update_info="Update all"
+  function update {
+      update-brew
+      update-asdf
+      update-npm
+  }
+
+
+  ################################################################################
+  # Script help and run commands
+
+  function _help {
+      local tasks=$(grep --only-match '^\s*function\s\+[^_]\S\+' $0 | sed 's/^[ \t]*function[ \t]*//')
+      local lines=""
+      for task in ${tasks[*]}
+      do
+          local info=${task//-/_}_info
+          lines+="- $task\t${!info}\n"
+      done
+      echo "run <task> [<args>]"
+      echo "Available tasks:"
+      echo -e $lines | column -t -s$'\t'
+  }
+
+  TIMEFORMAT="Task completed in %3lR"
+  time ${@:-_help}
+#+end_src
+
+Running ~./run~ produces:
+
+#+begin_example
+  run <task> [<args>]
+  Available tasks:
+  - update-brew  Update brew
+  - update-asdf  Update asdf
+  - update-npm   Update global npm
+  - update       Update all
+  Task completed in 0m0.009s
+#+end_example
+
+** Install (optional)
+To "install", add the following to your ~.bashrc~.
+#+begin_src sh
+  # Run your tasks like: run <task>
+  alias run=./run
+#+end_src
